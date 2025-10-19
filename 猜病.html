@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏥 AI猜病游戏</title>
+    <style>
+        :root {
+            --primary-color: #0066cc;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --bg-color: #f0f4f8;
+            --chat-bg: #ffffff;
+            --doctor-msg: #e3f2fd;
+            --patient-msg: #fff3e0;
+            --text-color: #333;
+            --border-color: #ddd;
+            --shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 800px;
+            height: 90vh;
+            max-height: 900px;
+            background: var(--chat-bg);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 头部区域 */
+        #game-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        #game-header h1 {
+            font-size: 1.8em;
+            margin-bottom: 10px;
+        }
+
+        #game-info {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .info-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            backdrop-filter: blur(10px);
+        }
+
+        /* 聊天区域 */
+        #chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: var(--bg-color);
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3em;
+            flex-shrink: 0;
+            margin-right: 12px;
+        }
+
+        .doctor-message {
+            justify-content: flex-end;
+        }
+
+        .doctor-message .message-avatar {
+            order: 2;
+            margin-right: 0;
+            margin-left: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .patient-message .message-avatar {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 18px;
+            border-radius: 18px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .doctor-message .message-content {
+            background: var(--doctor-msg);
+            border-bottom-right-radius: 5px;
+        }
+
+        .patient-message .message-content {
+            background: var(--patient-msg);
+            border-bottom-left-radius: 5px;
+        }
+
+        .system-message {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .system-message .message-content {
+            background: rgba(0,0,0,0.05);
+            color: var(--text-color);
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            font-size: 0.9em;
+            max-width: 80%;
+        }
+
+        /* 输入区域 */
+        #input-section {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid var(--border-color);
+        }
+
+        #input-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        #user-input {
+            flex: 1;
+            padding: 12px 18px;
+            border: 2px solid var(--border-color);
+            border-radius: 25px;
+            font-size: 1em;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #user-input:focus {
+            border-color: var(--primary-color);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            outline: none;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-send {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-width: 80px;
+        }
+
+        .btn-send:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+        }
+
+        .btn-diagnose {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-diagnose:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(240,147,251,0.4);
+        }
+
+        .btn-restart {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+        }
+
+        .btn-restart:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(250,112,154,0.4);
+        }
+
+        #action-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        /* 游戏结果弹窗 */
+        #result-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 500px;
+            animation: scaleIn 0.3s;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 2em;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+
+        .modal-text {
+            font-size: 1.1em;
+            color: var(--text-color);
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        /* 加载动画 */
+        .typing-indicator {
+            display: inline-flex;
+            gap: 4px;
+            padding: 10px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.7;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 600px) {
+            #game-header h1 {
+                font-size: 1.4em;
+            }
+
+            .message-content {
+                max-width: 85%;
+            }
+
+            .modal-content {
+                margin: 20px;
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="game-header">
+            <h1>🏥 AI 猜病游戏</h1>
+            <p style="opacity: 0.9; margin-top: 5px;">你是医生，通过问诊找出患者的真实病情</p>
+            <div id="game-info">
+                <div class="info-badge">👨‍⚕️ 角色：医生</div>
+                <div class="info-badge">💬 对话次数：<span id="turn-count">0</span></div>
+                <div class="info-badge">🎯 诊断次数：<span id="guess-count">0</span>/5</div>
+            </div>
+        </div>
+
+        <div id="chat-area"></div>
+
+        <div id="input-section">
+            <div id="input-controls">
+                <input type="text" id="user-input" placeholder="询问患者症状..." autocomplete="off">
+                <button id="send-btn" class="btn btn-send">发送</button>
+            </div>
+            <div id="action-buttons">
+                <button id="diagnose-btn" class="btn btn-diagnose">📋 我要诊断</button>
+                <button id="restart-btn" class="btn btn-restart">🔄 开始新游戏</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 结果弹窗 -->
+    <div id="result-modal">
+        <div class="modal-content">
+            <div class="modal-icon" id="result-icon"></div>
+            <div class="modal-title" id="result-title"></div>
+            <div class="modal-text" id="result-text"></div>
+            <button class="btn btn-restart" onclick="restartGame()">再玩一局</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 配置区域 ---
+        const baseURL = "https://openrouter.ai/api/v1";
+        const apiKey = "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";
+        const model = "google/gemini-2.5-flash";
+        // -----------------
+
+        // 游戏状态
+        let gameState = {
+            isPlaying: false,
+            turnCount: 0,
+            guessCount: 0,
+            maxGuesses: 5,
+            currentDisease: '',
+            conversationHistory: []
+        };
+
+        // DOM元素
+        const chatArea = document.getElementById('chat-area');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const diagnoseBtn = document.getElementById('diagnose-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const turnCountEl = document.getElementById('turn-count');
+        const guessCountEl = document.getElementById('guess-count');
+        const resultModal = document.getElementById('result-modal');
+
+        // 常见疾病列表
+        const diseases = [
+            '普通感冒', '流行性感冒', '急性胃炎', '慢性胃炎', '阑尾炎',
+            '肺炎', '支气管炎', '偏头痛', '高血压', '低血糖',
+            '过敏性鼻炎', '结膜炎', '扁桃体炎', '胃溃疡', '便秘',
+            '腹泻', '中暑', '贫血', '关节炎', '腰肌劳损'
+        ];
+
+        // 初始化游戏
+        function initGame() {
+            gameState.isPlaying = true;
+            gameState.turnCount = 0;
+            gameState.guessCount = 0;
+            gameState.currentDisease = diseases[Math.floor(Math.random() * diseases.length)];
+            gameState.conversationHistory = [];
+
+            chatArea.innerHTML = '';
+            updateGameInfo();
+
+            // 系统提示
+            addSystemMessage('🎮 新游戏开始！患者已经来到诊室，开始你的问诊吧...');
+
+            // AI初始化（让AI知道它的疾病）
+            const systemPrompt = `你是一位患者，你患有"${gameState.currentDisease}"，但你会对医生有所隐瞒，不会直接说出自己的病名。
+
+游戏规则：
+1. 医生会向你询问症状，你要根据"${gameState.currentDisease}"的真实症状来回答
+2. 你可以描述症状，但要显得犹豫、不确定，或者淡化严重程度
+3. 你不能直接说出病名"${gameState.currentDisease}"
+4. 你可以提到一些与该病相关的症状，但要表现得不太在意
+5. 回答要简短自然，像真实的患者对话
+6. 适当表现出患者的情绪（担心、害羞、不好意思等）
+7. 如果医生猜测的疾病与"${gameState.currentDisease}"完全相同，你要承认
+
+请扮演好这个患者角色，让游戏更有趣。每次回答控制在50字以内，要自然。`;
+
+            gameState.conversationHistory.push({
+                role: 'system',
+                content: systemPrompt
+            });
+
+            // 患者的开场白
+            sendAIMessage('你好医生，我最近感觉身体有点不舒服...');
+        }
+
+        // 发送用户消息
+        async function sendUserMessage() {
+            const message = userInput.value.trim();
+            if (!message || !gameState.isPlaying) return;
+
+            // 显示用户消息
+            addMessage(message, 'doctor');
+            userInput.value = '';
+
+            // 更新对话历史
+            gameState.conversationHistory.push({
+                role: 'user',
+                content: message
+            });
+
+            gameState.turnCount++;
+            updateGameInfo();
+
+            // 显示加载动画
+            const loadingId = showTypingIndicator();
+
+            try {
+                // 获取AI回复
+                const response = await getAIResponse();
+                removeTypingIndicator(loadingId);
+
+                // 显示AI回复
+                addMessage(response, 'patient');
+
+                gameState.conversationHistory.push({
+                    role: 'assistant',
+                    content: response
+                });
+
+            } catch (error) {
+                removeTypingIndicator(loadingId);
+                addSystemMessage('❌ 患者突然不说话了（网络错误）');
+                console.error('Error:', error);
+            }
+        }
+
+        // 诊断疾病
+        async function diagnoseDisease() {
+            if (!gameState.isPlaying) return;
+            
+            const diagnosis = prompt('请输入你的诊断结果：');
+            if (!diagnosis) return;
+
+            gameState.guessCount++;
+            updateGameInfo();
+
+            // 显示医生的诊断
+            addMessage(`我认为您患的是：${diagnosis}`, 'doctor');
+
+            // 检查是否正确
+            if (diagnosis === gameState.currentDisease) {
+                // 猜对了！
+                gameWin(diagnosis);
+            } else {
+                // 猜错了
+                if (gameState.guessCount >= gameState.maxGuesses) {
+                    // 用完了所有机会
+                    gameLose();
+                } else {
+                    // 还有机会
+                    const remaining = gameState.maxGuesses - gameState.guessCount;
+                    addMessage(`不是的医生，我觉得不是这个病... 您还有${remaining}次诊断机会。`, 'patient');
+                }
+            }
+        }
+
+        // 游戏胜利
+        function gameWin(diagnosis) {
+            gameState.isPlaying = false;
+            
+            addMessage(`是的医生！你说得对，我确实是${gameState.currentDisease}。谢谢您的诊断！`, 'patient');
+            
+            setTimeout(() => {
+                showResultModal(
+                    '🎉',
+                    '诊断成功！',
+                    `恭喜你，医生！你成功诊断出患者患有"${gameState.currentDisease}"。\n\n对话次数：${gameState.turnCount}次\n诊断次数：${gameState.guessCount}次`
+                );
+            }, 1000);
+        }
+
+        // 游戏失败
+        function gameLose() {
+            gameState.isPlaying = false;
+            
+            addMessage(`医生，我觉得你诊断错了... 我实际上患的是${gameState.currentDisease}。`, 'patient');
+            
+            setTimeout(() => {
+                showResultModal(
+                    '😔',
+                    '诊断失败',
+                    `很遗憾，你没有诊断出正确的疾病。\n\n患者实际患有：${gameState.currentDisease}\n对话次数：${gameState.turnCount}次\n\n不要灰心，再试一次吧！`
+                );
+            }, 1000);
+        }
+
+        // 添加消息到聊天区域
+        function addMessage(content, role) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}-message`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = role === 'doctor' ? '👨‍⚕️' : '🤒';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = content;
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(contentDiv);
+            chatArea.appendChild(messageDiv);
+
+            scrollToBottom();
+        }
+
+        // 添加系统消息
+        function addSystemMessage(content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message system-message';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = content;
+
+            messageDiv.appendChild(contentDiv);
+            chatArea.appendChild(messageDiv);
+
+            scrollToBottom();
+        }
+
+        // 显示打字指示器
+        function showTypingIndicator() {
+            const id = 'typing-' + Date.now();
+            const messageDiv = document.createElement('div');
+            messageDiv.id = id;
+            messageDiv.className = 'message patient-message';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = '🤒';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = '<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(contentDiv);
+            chatArea.appendChild(messageDiv);
+
+            scrollToBottom();
+            return id;
+        }
+
+        // 移除打字指示器
+        function removeTypingIndicator(id) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.remove();
+            }
+        }
+
+        // 发送AI消息（用于开场白）
+        function sendAIMessage(content) {
+            addMessage(content, 'patient');
+            gameState.conversationHistory.push({
+                role: 'assistant',
+                content: content
+            });
+        }
+
+        // 获取AI回复
+        async function getAIResponse() {
+            const response = await fetch(`${baseURL}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: gameState.conversationHistory,
+                    temperature: 0.8,
+                    max_tokens: 150
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.choices[0].message.content;
+        }
+
+        // 显示结果弹窗
+        function showResultModal(icon, title, text) {
+            document.getElementById('result-icon').textContent = icon;
+            document.getElementById('result-title').textContent = title;
+            document.getElementById('result-text').textContent = text;
+            resultModal.style.display = 'flex';
+        }
+
+        // 隐藏结果弹窗
+        function hideResultModal() {
+            resultModal.style.display = 'none';
+        }
+
+        // 重新开始游戏
+        function restartGame() {
+            hideResultModal();
+            initGame();
+        }
+
+        // 更新游戏信息
+        function updateGameInfo() {
+            turnCountEl.textContent = gameState.turnCount;
+            guessCountEl.textContent = gameState.guessCount;
+        }
+
+        // 滚动到底部
+        function scrollToBottom() {
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        // 事件监听
+        sendBtn.addEventListener('click', sendUserMessage);
+        diagnoseBtn.addEventListener('click', diagnoseDisease);
+        restartBtn.addEventListener('click', restartGame);
+
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !sendBtn.disabled) {
+                sendUserMessage();
+            }
+        });
+
+        // 点击弹窗外部关闭
+        resultModal.addEventListener('click', (e) => {
+            if (e.target === resultModal) {
+                hideResultModal();
+            }
+        });
+
+        // 游戏启动
+        initGame();
+    </script>
+</body>
+</html>
+
